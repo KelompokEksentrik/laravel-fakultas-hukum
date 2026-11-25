@@ -1,9 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
     kurikulumApi,
-    KurikulumCpl,
-    KurikulumMataKuliah,
-    KurikulumProfil,
+    type KurikulumCpl,
+    type KurikulumProfil,
 } from "../../service/kurikulumApi";
 
 interface ConnectorLine {

@@ -6,6 +6,7 @@ import LandingPage from './page/LandingPage';
 import HalamanMasuk from './page/auth/login';
 import RingkasanDashboard from './page/dashboard/dashboard';
 import TataLetakDashboard from './layout/dashboard';
+import DosenPublik from './page/public/DosenPublik';
 
 function RuteTerproteksi({ children }: { children: ReactNode }) {
   const { sudahMasuk, memuat } = gunakanAutentikasi();
@@ -85,7 +86,8 @@ export default function App() {
               </RuteTerproteksi>
             }
           />
-
+          
+          <Route path="/dosen" element={<DosenPublik />} />
           <Route path="*" element={<Navigate to="/masuk" replace />} />
         </Routes>
       </BrowserRouter>

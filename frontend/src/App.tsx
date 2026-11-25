@@ -8,9 +8,8 @@ import RingkasanDashboard from './page/dashboard/dashboard';
 import TataLetakDashboard from './layout/dashboard';
 import DosenPublik from './page/public/DosenPublik';
 import DosenAdmin from './page/dashboard/dosen';
+import KurikulumAdmin from './page/dashboard/kurikulum';
 import PetaKurikulum from './page/public/PetaKurikulumPage';
-
-
 
 function RuteTerproteksi({ children }: { children: ReactNode }) {
   const { sudahMasuk, memuat } = gunakanAutentikasi();
@@ -62,10 +61,7 @@ export default function App() {
             path="/dashboard/kurikulum"
             element={
               <RuteTerproteksi>
-                <PlaceholderMenu
-                  judul="Manajemen Kurikulum"
-                  subJudul="Tambah, ubah, dan hapus mata kuliah"
-                />
+                <KurikulumAdmin />
               </RuteTerproteksi>
             }
           />

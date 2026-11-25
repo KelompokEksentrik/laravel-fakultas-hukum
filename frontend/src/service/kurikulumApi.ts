@@ -62,7 +62,7 @@ export const kurikulumApi = {
         if (search.trim()) params.set("search", search.trim());
         const query = params.toString() ? `?${params.toString()}` : "";
 
-        const res = await fetch(`${API_BASE}/api/v1/publik/kurikulum${query}`, {
+        const res = await fetch(`${API_BASE}/api/v1/publik/kurikulum-peta${query}`, {
             headers: { Accept: "application/json" },
         });
         if (!res.ok) throw new Error("Gagal memuat data peta kurikulum publik.");
@@ -70,7 +70,7 @@ export const kurikulumApi = {
     },
 
     async getAdminList(): Promise<KurikulumProfil[]> {
-        const res = await fetch(`${API_BASE}/api/v1/kurikulum`, {
+        const res = await fetch(`${API_BASE}/api/v1/kurikulum-peta`, {
             headers: getAdminHeaders(),
         });
         if (!res.ok) throw new Error("Gagal memuat data kurikulum admin.");
@@ -79,7 +79,7 @@ export const kurikulumApi = {
     },
 
     async seedDefault(): Promise<KurikulumProfil[]> {
-        const res = await fetch(`${API_BASE}/api/v1/kurikulum-seed`, {
+        const res = await fetch(`${API_BASE}/api/v1/kurikulum-peta/seed-default`, {
             method: "POST",
             headers: getAdminHeaders(),
         });

@@ -11,6 +11,7 @@ interface DosenPublikItem {
     link_scholar: string | null;
     link_sinta: string | null;
     link_pddikti: string | null;
+    link_scopus: string | null;
 }
 
 interface MetaPaginasi {
@@ -219,6 +220,16 @@ export default function DosenPublik() {
                                     >
                                         PDDikti
                                     </a>
+                                    {dosen.link_scopus && (
+                                        <a
+                                            href={dosen.link_scopus}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="dosen-tab-btn"
+                                        >
+                                            Scopus
+                                        </a>
+                                    )}
                                 </div>
                             </div>
                         ))

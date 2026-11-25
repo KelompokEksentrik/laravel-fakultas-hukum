@@ -347,7 +347,7 @@ export default function PetaKurikulumPage() {
                     </div>
                 ) : (
                     <>
-                        <section
+                        <section    
                             ref={mapContainerRef}
                             className="relative rounded-xl border border-[#e8d5d5] bg-white p-4 sm:p-6"
                         >

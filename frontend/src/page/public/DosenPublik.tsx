@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+// import { Link } from 'react-router-dom';
 import './DosenPublik.css';
 
 interface DosenPublikItem {
@@ -93,7 +93,7 @@ export default function DosenPublik() {
     return (
         <div className="min-h-screen bg-white">
             {/* Headbar Publik */}
-            <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
+            {/* <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
                 <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
                     <Link to="/" className="flex items-center gap-2.5 font-bold text-slate-900">
                         <img src="/unpam-logo.png" alt="Logo Fakultas Hukum" className="h-8 w-8 object-contain" />
@@ -114,7 +114,7 @@ export default function DosenPublik() {
                         Login
                     </Link>
                 </div>
-            </header>
+            </header> */}
 
             {/* Konten Utama (Sesuai Slicing dosen.html) */}
             <div className="dosen-page-container">

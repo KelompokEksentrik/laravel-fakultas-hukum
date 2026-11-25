@@ -53,7 +53,7 @@ class DosenController extends Controller
         $cari = trim((string) $request->input('search', ''));
 
         $query = Dosen::query()
-            ->orderBy('urutan', 'asc')
+            ->orderByRaw("COALESCE(NULLIF(TRIM(nama_sort), ''), lower(TRIM(nama))) ASC")
             ->orderBy('id', 'asc');
 
         if ($cari !== '') {
@@ -296,19 +296,21 @@ class DosenController extends Controller
         return mb_strtolower($hasilBersih !== '' ? $hasilBersih : $namaLengkap, 'UTF-8');
     }
     public function sinkronSort(): JsonResponse
-{
-    $total = 0;
-    Dosen::chunkById(100, function ($items) use (&$total) {
-        foreach ($items as $dosen) {
-            $dosen->update([
-                'nama_sort' => $this->ekstrakNamaInti($dosen->nama),
-            ]);
-            $total++;
-        }
-    });
+    {
+        $total = 0;
 
-    return response()->json([
-        'pesan' => "Berhasil memperbarui urutan nama A-Z untuk {$total} dosen.",
-    ]);
-}
+        Dosen::orderBy('id')->chunk(100, function ($items) use (&$total) {
+            foreach ($items as $dosen) {
+                $dosen->nama_sort = Dosen::buatNamaSort((string) $dosen->nama);
+                $dosen->save();
+                $total++;
+            }
+        });
+
+        return response()->json([
+            'pesan' => "Berhasil memperbarui nama_sort untuk {$total} dosen.",
+            'total' => $total,
+        ]);
+    }
+
 }

@@ -13,6 +13,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/profil', [AutentikasiController::class, 'profil']);
         Route::post('/keluar', [AutentikasiController::class, 'keluar']);
+        Route::post('/dosen-sinkron-sort', [DosenController::class, 'sinkronSort']);
     
     // Manajemen Dosen
         Route::get('/dosen', [DosenController::class, 'index']);

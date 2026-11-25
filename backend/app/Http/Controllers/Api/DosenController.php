@@ -7,26 +7,27 @@ use App\Models\Dosen;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class DosenController extends Controller
 {
     /**
-     * Endpoint Publik: daftar dosen dengan pencarian & pagination 12/halaman
+     * Endpoint Publik: daftar dosen A-Z dengan pencarian & pagination (default 12/halaman)
      */
     public function publik(Request $request): JsonResponse
     {
-        $perHalaman = (int) $request->input('per_page', 12);
+        $perHalaman = max(1, (int) $request->input('per_page', 12));
         $cari = trim((string) $request->input('search', ''));
 
         $query = Dosen::query()
-        ->orderByRaw("COALESCE(NULLIF(TRIM(nama_sort), ''), lower(TRIM(nama))) ASC")
-        ->orderBy('id', 'asc');
+            ->orderByRaw("COALESCE(NULLIF(TRIM(nama_sort), ''), lower(TRIM(nama))) ASC")
+            ->orderBy('id', 'asc');
 
         if ($cari !== '') {
             $query->where(function ($q) use ($cari) {
                 $q->where('nama', 'ilike', "%{$cari}%")
-                  ->orWhere('nidn_nuptk', 'ilike', "%{$cari}%")
-                  ->orWhere('kepakaran', 'ilike', "%{$cari}%");
+                    ->orWhere('nidn_nuptk', 'ilike', "%{$cari}%")
+                    ->orWhere('kepakaran', 'ilike', "%{$cari}%");
             });
         }
 
@@ -46,10 +47,11 @@ class DosenController extends Controller
     }
 
     /**
-     * Endpoint Admin: daftar semua dosen (untuk tabel dashboard)
+     * Endpoint Admin: daftar dosen dengan pencarian & pagination (default 10/halaman)
      */
     public function index(Request $request): JsonResponse
     {
+        $perHalaman = max(1, (int) $request->input('per_page', 10));
         $cari = trim((string) $request->input('search', ''));
 
         $query = Dosen::query()
@@ -59,51 +61,57 @@ class DosenController extends Controller
         if ($cari !== '') {
             $query->where(function ($q) use ($cari) {
                 $q->where('nama', 'ilike', "%{$cari}%")
-                  ->orWhere('nidn_nuptk', 'ilike', "%{$cari}%")
-                  ->orWhere('kepakaran', 'ilike', "%{$cari}%");
+                    ->orWhere('nidn_nuptk', 'ilike', "%{$cari}%")
+                    ->orWhere('kepakaran', 'ilike', "%{$cari}%");
             });
         }
 
+        $paginasi = $query->paginate($perHalaman);
+
         return response()->json([
-            'data' => $query->get(),
+            'data' => $paginasi->items(),
+            'meta' => [
+                'current_page' => $paginasi->currentPage(),
+                'last_page' => $paginasi->lastPage(),
+                'per_page' => $paginasi->perPage(),
+                'total' => $paginasi->total(),
+                'from' => $paginasi->firstItem() ?? 0,
+                'to' => $paginasi->lastItem() ?? 0,
+            ],
         ]);
     }
 
     /**
-     * Endpoint Admin: tambah dosen baru
+     * Tambah data dosen baru
      */
     public function store(Request $request): JsonResponse
     {
         $validasi = $request->validate([
-            'nama' => ['required', 'string', 'max:255'],
-            'nidn_nuptk' => ['nullable', 'string', 'max:100'],
-            'kepakaran' => ['nullable', 'string'],
-            'foto_url' => ['nullable', 'string'],
-            'foto_file' => ['nullable', 'image', 'max:3072'],
-            'link_scholar' => ['nullable', 'string'],
-            'link_sinta' => ['nullable', 'string'],
-            'link_pddikti' => ['nullable', 'string'],
-            'link_scopus' => ['nullable', 'string'],
-            'urutan' => ['nullable', 'integer'],
+            'nama' => 'required|string|max:255',
+            'nidn_nuptk' => 'nullable|string|max:100',
+            'kepakaran' => 'nullable|string|max:500',
+            'foto_url' => 'nullable|string|max:1000',
+            'foto_file' => 'nullable|image|max:3072',
+            'link_scholar' => 'nullable|string|max:1000',
+            'link_sinta' => 'nullable|string|max:1000',
+            'link_pddikti' => 'nullable|string|max:2000',
+            'link_scopus' => 'nullable|string|max:1000',
+            'urutan' => 'nullable|integer',
         ]);
 
-        $fotoUrl = $this->normalisasiFotoUrl($validasi['foto_url'] ?? null);
-
-        if ($request->hasFile('foto_file')) {
-            $path = $request->file('foto_file')->store('dosen', 's3');
-            $fotoUrl = Storage::disk('s3')->url($path);
-        }
+        $fotoFinal = $this->prosesFoto($request, $validasi['foto_url'] ?? null);
 
         $dosen = Dosen::create([
-            'nama' => $validasi['nama'],
-            'nidn_nuptk' => $validasi['nidn_nuptk'] ?? null,
-            'kepakaran' => $validasi['kepakaran'] ?? null,
-            'foto_url' => $fotoUrl,
+            'nama' => trim($validasi['nama']),
+            'nama_sort' => Dosen::buatNamaSort(trim($validasi['nama'])),
+            'nidn_nuptk' => $this->bersihkanTeks($validasi['nidn_nuptk'] ?? null),
+            'kepakaran' => $this->bersihkanTeks($validasi['kepakaran'] ?? null),
+            'foto_url' => $fotoFinal,
             'link_scholar' => $this->bersihkanUrl($validasi['link_scholar'] ?? null),
             'link_sinta' => $this->bersihkanUrl($validasi['link_sinta'] ?? null),
             'link_pddikti' => $this->bersihkanUrl($validasi['link_pddikti'] ?? null),
             'link_scopus' => $this->bersihkanUrl($validasi['link_scopus'] ?? null),
-            'urutan' => $validasi['urutan'] ?? (Dosen::max('urutan') + 1),
+            'urutan' => (int) ($validasi['urutan'] ?? 0),
         ]);
 
         return response()->json([
@@ -113,52 +121,49 @@ class DosenController extends Controller
     }
 
     /**
-     * Endpoint Admin: perbarui data dosen
+     * Perbarui data dosen (mendukung POST dengan FormData maupun PUT/PATCH)
      */
     public function update(Request $request, int $id): JsonResponse
     {
         $dosen = Dosen::findOrFail($id);
 
         $validasi = $request->validate([
-            'nama' => ['required', 'string', 'max:255'],
-            'nidn_nuptk' => ['nullable', 'string', 'max:100'],
-            'kepakaran' => ['nullable', 'string'],
-            'foto_url' => ['nullable', 'string'],
-            'foto_file' => ['nullable', 'image', 'max:3072'],
-            'link_scholar' => ['nullable', 'string'],
-            'link_sinta' => ['nullable', 'string'],
-            'link_pddikti' => ['nullable', 'string'],
-            'link_scopus' => ['nullable', 'string'],
-            'urutan' => ['nullable', 'integer'],
+            'nama' => 'required|string|max:255',
+            'nidn_nuptk' => 'nullable|string|max:100',
+            'kepakaran' => 'nullable|string|max:500',
+            'foto_url' => 'nullable|string|max:1000',
+            'foto_file' => 'nullable|image|max:3072',
+            'link_scholar' => 'nullable|string|max:1000',
+            'link_sinta' => 'nullable|string|max:1000',
+            'link_pddikti' => 'nullable|string|max:2000',
+            'link_scopus' => 'nullable|string|max:1000',
+            'urutan' => 'nullable|integer',
         ]);
 
-        $fotoUrl = $this->normalisasiFotoUrl($validasi['foto_url'] ?? $dosen->foto_url);
-
-        if ($request->hasFile('foto_file')) {
-            $path = $request->file('foto_file')->store('dosen', 's3');
-            $fotoUrl = Storage::disk('s3')->url($path);
-        }
+        $fotoFinal = $this->prosesFoto($request, $validasi['foto_url'] ?? $dosen->foto_url);
+        $namaBaru = trim($validasi['nama']);
 
         $dosen->update([
-            'nama' => $validasi['nama'],
-            'nidn_nuptk' => $validasi['nidn_nuptk'] ?? null,
-            'kepakaran' => $validasi['kepakaran'] ?? null,
-            'foto_url' => $fotoUrl,
+            'nama' => $namaBaru,
+            'nama_sort' => Dosen::buatNamaSort($namaBaru),
+            'nidn_nuptk' => $this->bersihkanTeks($validasi['nidn_nuptk'] ?? null),
+            'kepakaran' => $this->bersihkanTeks($validasi['kepakaran'] ?? null),
+            'foto_url' => $fotoFinal,
             'link_scholar' => $this->bersihkanUrl($validasi['link_scholar'] ?? null),
             'link_sinta' => $this->bersihkanUrl($validasi['link_sinta'] ?? null),
             'link_pddikti' => $this->bersihkanUrl($validasi['link_pddikti'] ?? null),
             'link_scopus' => $this->bersihkanUrl($validasi['link_scopus'] ?? null),
-            'urutan' => $validasi['urutan'] ?? $dosen->urutan,
+            'urutan' => isset($validasi['urutan']) ? (int) $validasi['urutan'] : $dosen->urutan,
         ]);
 
         return response()->json([
             'pesan' => 'Data dosen berhasil diperbarui.',
-            'data' => $dosen,
+            'data' => $dosen->fresh(),
         ]);
     }
 
     /**
-     * Endpoint Admin: hapus dosen
+     * Hapus data dosen
      */
     public function destroy(int $id): JsonResponse
     {
@@ -171,146 +176,167 @@ class DosenController extends Controller
     }
 
     /**
-     * Endpoint Admin: Import CSV langsung dari Google Sheets / Excel (140+ data sekaligus)
+     * Impor data dosen dari file CSV hasil export spreadsheet
      */
     public function importCsv(Request $request): JsonResponse
     {
         $request->validate([
-            'file_csv' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'file_csv' => 'required|file|mimes:csv,txt|max:5120',
         ]);
 
-        $file = $request->file('file_csv');
-        $handle = fopen($file->getRealPath(), 'r');
-
-        if (! $handle) {
+        $path = $request->file('file_csv')->getRealPath();
+        $handle = fopen($path, 'r');
+        if ($handle === false) {
             return response()->json(['pesan' => 'Gagal membaca file CSV.'], 422);
         }
 
-        // Deteksi delimiter otomatis (, atau ; atau tab)
+        // Deteksi delimiter koma (,) atau titik koma (;)
         $barisPertama = fgets($handle);
         rewind($handle);
-        $delimiter = ',';
-        if (substr_count($barisPertama, ';') > substr_count($barisPertama, ',')) {
-            $delimiter = ';';
-        } elseif (substr_count($barisPertama, "\t") > substr_count($barisPertama, ',')) {
-            $delimiter = "\t";
-        }
+        $delimiter = (substr_count((string) $barisPertama, ';') > substr_count((string) $barisPertama, ','))
+            ? ';'
+            : ',';
 
-        $header = fgetcsv($handle, 0, $delimiter); // Lewati baris header
-        $berhasil = 0;
-        $urutan = (int) Dosen::max('urutan');
+        $barisKe = 0;
+        $diimpor = 0;
 
         while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
-            $nama = trim((string) ($row[0] ?? ''));
-            if ($nama === '') {
+            $barisKe++;
+
+            // Lewati baris kosong atau baris header
+            $joined = trim(implode('', $row));
+            if ($joined === '') {
+                continue;
+            }
+            if ($barisKe === 1 && preg_match('/\bnama\b/i', (string) ($row[1] ?? $row[0] ?? ''))) {
                 continue;
             }
 
-            $urutan++;
-            $kepakaran   = trim((string) ($row[1] ?? '')) ?: null;
-            $linkScholar = $this->bersihkanUrl($row[2] ?? null);
-            $linkSinta   = $this->bersihkanUrl($row[3] ?? null);
-            $linkPddikti = $this->bersihkanUrl($row[4] ?? null);
-            $nidn        = trim((string) ($row[5] ?? '')) ?: null;
-            $fotoUrl     = $this->normalisasiFotoUrl($row[6] ?? null);
-            $linkScopus  = $this->bersihkanUrl($row[7] ?? null);
+            // Asumsi kolom spreadsheet:
+            // [0] No/Urutan, [1] Nama, [2] NIDN/NUPTK, [3] Kepakaran, [4] Foto, [5] Scholar, [6] Sinta, [7] PDDikti, [8] Scopus
+            $hasNoCol = is_numeric(trim((string) ($row[0] ?? '')));
+            $offset = $hasNoCol ? 1 : 0;
+
+            $nama = $this->bersihkanTeks($row[$offset] ?? null);
+            if ($nama === null) {
+                continue;
+            }
+
+            $nidn = $this->bersihkanTeks($row[$offset + 1] ?? null);
+            $kepakaran = $this->bersihkanTeks($row[$offset + 2] ?? null);
+            $fotoRaw = $this->bersihkanTeks($row[$offset + 3] ?? null);
+            $scholarRaw = $this->bersihkanTeks($row[$offset + 4] ?? null);
+            $sintaRaw = $this->bersihkanTeks($row[$offset + 5] ?? null);
+            $pddiktiRaw = $this->bersihkanTeks($row[$offset + 6] ?? null);
+            $scopusRaw = $this->bersihkanTeks($row[$offset + 7] ?? null);
 
             Dosen::updateOrCreate(
                 ['nama' => $nama],
                 [
-                    'nidn_nuptk'   => $nidn,
-                    'kepakaran'    => $kepakaran,
-                    'foto_url'     => $fotoUrl,
-                    'link_scholar' => $linkScholar,
-                    'link_sinta'   => $linkSinta,
-                    'link_pddikti' => $linkPddikti,
-                    'link_scopus'  => $linkScopus,
-                    'urutan'       => $urutan,
+                    'nama_sort' => Dosen::buatNamaSort($nama),
+                    'nidn_nuptk' => $nidn,
+                    'kepakaran' => $kepakaran,
+                    'foto_url' => $this->konversiFotoUrl($fotoRaw),
+                    'link_scholar' => $this->bersihkanUrl($scholarRaw),
+                    'link_sinta' => $this->bersihkanUrl($sintaRaw),
+                    'link_pddikti' => $this->bersihkanUrl($pddiktiRaw),
+                    'link_scopus' => $this->bersihkanUrl($scopusRaw),
+                    'urutan' => $hasNoCol ? (int) trim((string) $row[0]) : ($diimpor + 1),
                 ]
             );
 
-            $berhasil++;
+            $diimpor++;
         }
 
         fclose($handle);
 
         return response()->json([
-            'pesan' => "Berhasil mengimpor {$berhasil} data dosen dari spreadsheet.",
-            'total_impor' => $berhasil,
+            'pesan' => "Berhasil mengimpor {$diimpor} data dosen.",
+            'total' => $diimpor,
         ]);
     }
 
     /**
-     * Ubah link Google Drive /file/d/ID/view menjadi direct thumbnail agar tampil di <img>
+     * Sinkronisasi ulang nama_sort dan normalisasi URL seluruh data dosen
      */
-    private function normalisasiFotoUrl(?string $url): ?string
-    {
-        $url = trim((string) $url);
-        if ($url === '') {
-            return null;
-        }
-
-        if (preg_match('/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/', $url, $match)) {
-            return "https://drive.google.com/thumbnail?id={$match[1]}&sz=w600";
-        }
-
-        if (preg_match('/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/', $url, $match)) {
-            return "https://drive.google.com/thumbnail?id={$match[1]}&sz=w600";
-        }
-
-        return $url;
-    }
-
-    /**
-     * Ambil URL bersih pertama (mengatasi sel seperti "https://scholar... | ORCID: ...")
-     */
-    private function bersihkanUrl(?string $raw): ?string
-    {
-        $raw = trim((string) $raw);
-        if ($raw === '' || in_array(mb_strtolower($raw), ['-', 'n/a', 'tidak ada', 'none'], true)) {
-            return null;
-        }
-
-        $bagianPertama = trim(explode('|', $raw)[0]);
-        return filter_var($bagianPertama, FILTER_VALIDATE_URL) ? $bagianPertama : null;
-    }
-    /**
- * Mengambil nama inti saja tanpa gelar depan maupun gelar belakang untuk sorting A-Z
- */
-    private function ekstrakNamaInti(string $namaLengkap): string
-    {
-        // 1. Ambil bagian sebelum koma pertama (menghilangkan gelar belakang seperti ", S.H., M.H.")
-        $tanpaGelarBelakang = explode(',', $namaLengkap)[0];
-
-        // 2. Bersihkan gelar depan berulang (Prof., Dr., Assoc., dr., Dr (C)., H., Hj., Ir., Drs., Dra., KH., dll.)
-        $polaGelarDepan = '/^(?:assoc\.?|prof\.?|dr\.?|drs\.?|dra\.?|ir\.?|h\.?|hj\.?|kh\.?|ust\.?|ustadz\.?|raden\.?|rm\.?|tb\.?|dr\s*\(c\)\.?|prof\s*\(emeritus\)\.?)\s+/i';
-
-        $hasil = trim($tanpaGelarBelakang);
-        while (preg_match($polaGelarDepan, $hasil)) {
-            $hasil = preg_replace($polaGelarDepan, '', $hasil);
-            $hasil = trim((string) $hasil);
-        }
-
-        // 3. Bersihkan titik/koma berlebih di awal atau akhir lalu lowercase untuk sorting A-Z
-        $hasilBersih = trim($hasil, " \t\n\r\0\x0B.,");
-        return mb_strtolower($hasilBersih !== '' ? $hasilBersih : $namaLengkap, 'UTF-8');
-    }
     public function sinkronSort(): JsonResponse
     {
         $total = 0;
 
         Dosen::orderBy('id')->chunk(100, function ($items) use (&$total) {
             foreach ($items as $dosen) {
-                $dosen->nama_sort = Dosen::buatNamaSort((string) $dosen->nama);
-                $dosen->save();
+                $dosen->update([
+                    'nama_sort' => Dosen::buatNamaSort((string) $dosen->nama),
+                    'link_scholar' => $this->bersihkanUrl($dosen->link_scholar),
+                    'link_sinta' => $this->bersihkanUrl($dosen->link_sinta),
+                    'link_pddikti' => $this->bersihkanUrl($dosen->link_pddikti),
+                    'link_scopus' => $this->bersihkanUrl($dosen->link_scopus),
+                ]);
                 $total++;
             }
         });
 
         return response()->json([
-            'pesan' => "Berhasil memperbarui nama_sort untuk {$total} dosen.",
+            'pesan' => "Berhasil menyinkronkan {$total} data dosen.",
             'total' => $total,
         ]);
     }
 
+    private function prosesFoto(Request $request, ?string $fotoUrl): ?string
+    {
+        if ($request->hasFile('foto_file')) {
+            $file = $request->file('foto_file');
+            $namaFile = 'dosen/' . Str::uuid() . '.' . $file->getClientOriginalExtension();
+
+            try {
+                Storage::disk('s3')->put($namaFile, file_get_contents($file->getRealPath()), 'public');
+                return Storage::disk('s3')->url($namaFile);
+            } catch (\Throwable $e) {
+                $lokal = $file->store('dosen', 'public');
+                return asset('storage/' . $lokal);
+            }
+        }
+
+        return $this->konversiFotoUrl($this->bersihkanTeks($fotoUrl));
+    }
+
+    private function konversiFotoUrl(?string $url): ?string
+    {
+        if ($url === null) {
+            return null;
+        }
+
+        if (preg_match('#/file/d/([a-zA-Z0-9_-]+)#', $url, $matches)) {
+            return "https://drive.google.com/thumbnail?id={$matches[1]}&sz=w600";
+        }
+
+        if (preg_match('#[?&]id=([a-zA-Z0-9_-]+)#', $url, $matches) && str_contains($url, 'drive.google.com')) {
+            return "https://drive.google.com/thumbnail?id={$matches[1]}&sz=w600";
+        }
+
+        return filter_var($url, FILTER_VALIDATE_URL) ? $url : null;
+    }
+
+    private function bersihkanTeks(?string $nilai): ?string
+    {
+        if ($nilai === null) {
+            return null;
+        }
+        $bersih = trim(preg_replace('/\s+/', ' ', $nilai));
+        if ($bersih === '' || in_array(mb_strtolower($bersih), ['-', 'n/a', 'null', 'tidak ada'], true)) {
+            return null;
+        }
+        return $bersih;
+    }
+
+    private function bersihkanUrl(?string $raw): ?string
+    {
+        $bersih = $this->bersihkanTeks($raw);
+        if ($bersih === null) {
+            return null;
+        }
+
+        $kandidat = trim(explode('|', $bersih)[0]);
+        return filter_var($kandidat, FILTER_VALIDATE_URL) ? $kandidat : null;
+    }
 }

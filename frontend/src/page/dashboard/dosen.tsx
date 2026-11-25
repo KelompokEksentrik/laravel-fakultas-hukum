@@ -9,6 +9,8 @@ import {
     Loader2,
     ExternalLink,
     FileSpreadsheet,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import TataLetakDashboard from '../../layout/dashboard';
 
@@ -25,28 +27,44 @@ interface Dosen {
     urutan: number;
 }
 
+interface MetaPaginasi {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number;
+    to: number;
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1';
+const OPSI_PER_HALAMAN = [10, 25, 50, 100];
 
 function ambilToken(): string {
-    return (
-        localStorage.getItem('token') ||
-        localStorage.getItem('auth_token') ||
-        localStorage.getItem('token_fh') ||
-        ''
-    );
+    return localStorage.getItem('token_fh') || '';
 }
 
 export default function ManajemenDosen() {
     const [daftarDosen, setDaftarDosen] = useState<Dosen[]>([]);
-    const [memuat, setMemuat] = useState(true);
-    const [kataKunci, setKataKunci] = useState('');
-    const [pesanSukses, setPesanSukses] = useState('');
-    const [pesanError, setPesanError] = useState('');
+    const [meta, setMeta] = useState<MetaPaginasi>({
+        current_page: 1,
+        last_page: 1,
+        per_page: 10,
+        total: 0,
+        from: 0,
+        to: 0,
+    });
+
+    const [halaman, setHalaman] = useState<number>(1);
+    const [perHalaman, setPerHalaman] = useState<number>(10);
+    const [kataKunci, setKataKunci] = useState<string>('');
+    const [memuat, setMemuat] = useState<boolean>(true);
+    const [pesanSukses, setPesanSukses] = useState<string>('');
+    const [pesanError, setPesanError] = useState<string>('');
 
     // State Modal Tambah / Edit
-    const [modalTerbuka, setModalTerbuka] = useState(false);
+    const [modalTerbuka, setModalTerbuka] = useState<boolean>(false);
     const [idEdit, setIdEdit] = useState<number | null>(null);
-    const [menyimpan, setMenyimpan] = useState(false);
+    const [menyimpan, setMenyimpan] = useState<boolean>(false);
 
     const [nama, setNama] = useState('');
     const [nidnNuptk, setNidnNuptk] = useState('');
@@ -60,14 +78,23 @@ export default function ManajemenDosen() {
     const [urutan, setUrutan] = useState<number>(0);
 
     // State Import CSV
-    const [mengimpor, setMengimpor] = useState(false);
+    const [mengimpor, setMengimpor] = useState<boolean>(false);
 
-    const muatDataDosen = async (search = '') => {
+    const muatDataDosen = async (
+        targetPage = halaman,
+        targetPerPage = perHalaman,
+        search = kataKunci
+    ) => {
         setMemuat(true);
         setPesanError('');
+
         try {
             const url = new URL(`${API_BASE}/dosen`);
-            if (search.trim()) url.searchParams.set('search', search.trim());
+            url.searchParams.set('page', String(targetPage));
+            url.searchParams.set('per_page', String(targetPerPage));
+            if (search.trim()) {
+                url.searchParams.set('search', search.trim());
+            }
 
             const res = await fetch(url.toString(), {
                 headers: {
@@ -77,7 +104,30 @@ export default function ManajemenDosen() {
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.pesan || 'Gagal memuat data dosen.');
-            setDaftarDosen(json.data || []);
+
+            const semuaItem: Dosen[] = Array.isArray(json.data) ? json.data : [];
+
+            if (json.meta) {
+                setDaftarDosen(semuaItem);
+                setMeta(json.meta);
+            } else {
+                // Fallback jika backend mengembalikan seluruh array sekaligus
+                const total = semuaItem.length;
+                const lastPage = Math.max(1, Math.ceil(total / targetPerPage));
+                const validPage = Math.min(Math.max(1, targetPage), lastPage);
+                const startIdx = (validPage - 1) * targetPerPage;
+                const sliced = semuaItem.slice(startIdx, startIdx + targetPerPage);
+
+                setDaftarDosen(sliced);
+                setMeta({
+                    current_page: validPage,
+                    last_page: lastPage,
+                    per_page: targetPerPage,
+                    total,
+                    from: total === 0 ? 0 : startIdx + 1,
+                    to: Math.min(startIdx + targetPerPage, total),
+                });
+            }
         } catch (err: any) {
             setPesanError(err.message || 'Terjadi kesalahan saat memuat data.');
         } finally {
@@ -86,8 +136,20 @@ export default function ManajemenDosen() {
     };
 
     useEffect(() => {
-        muatDataDosen();
-    }, []);
+        void muatDataDosen(halaman, perHalaman, kataKunci);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [halaman, perHalaman]);
+
+    const handleCariSubmit = (e: FormEvent) => {
+        e.preventDefault();
+        setHalaman(1);
+        void muatDataDosen(1, perHalaman, kataKunci);
+    };
+
+    const handleUbahPerHalaman = (nilaiBaru: number) => {
+        setPerHalaman(nilaiBaru);
+        setHalaman(1);
+    };
 
     const bukaModalTambah = () => {
         setIdEdit(null);
@@ -100,7 +162,7 @@ export default function ManajemenDosen() {
         setLinkSinta('');
         setLinkPddikti('');
         setLinkScopus('');
-        setUrutan(daftarDosen.length + 1);
+        setUrutan(meta.total + 1);
         setModalTerbuka(true);
     };
 
@@ -156,7 +218,7 @@ export default function ManajemenDosen() {
 
             setPesanSukses(json.pesan || 'Data dosen tersimpan.');
             setModalTerbuka(false);
-            muatDataDosen(kataKunci);
+            void muatDataDosen(halaman, perHalaman, kataKunci);
         } catch (err: any) {
             setPesanError(err.message || 'Gagal menyimpan data.');
         } finally {
@@ -181,7 +243,10 @@ export default function ManajemenDosen() {
             if (!res.ok) throw new Error(json.pesan || 'Gagal menghapus data.');
 
             setPesanSukses(json.pesan || 'Data dosen dihapus.');
-            muatDataDosen(kataKunci);
+            const halamanBerikutnya =
+                daftarDosen.length === 1 && halaman > 1 ? halaman - 1 : halaman;
+            setHalaman(halamanBerikutnya);
+            void muatDataDosen(halamanBerikutnya, perHalaman, kataKunci);
         } catch (err: any) {
             setPesanError(err.message || 'Gagal menghapus data.');
         }
@@ -212,7 +277,8 @@ export default function ManajemenDosen() {
             if (!res.ok) throw new Error(json.pesan || 'Gagal mengimpor file CSV.');
 
             setPesanSukses(json.pesan);
-            muatDataDosen(kataKunci);
+            setHalaman(1);
+            void muatDataDosen(1, perHalaman, kataKunci);
         } catch (err: any) {
             setPesanError(err.message || 'Terjadi kesalahan saat impor CSV.');
         } finally {
@@ -221,10 +287,24 @@ export default function ManajemenDosen() {
         }
     };
 
+    const daftarHalaman = (): (number | '...')[] => {
+        const { current_page, last_page } = meta;
+        if (last_page <= 7) {
+            return Array.from({ length: last_page }, (_, i) => i + 1);
+        }
+        if (current_page <= 4) {
+            return [1, 2, 3, 4, 5, '...', last_page];
+        }
+        if (current_page >= last_page - 3) {
+            return [1, '...', last_page - 4, last_page - 3, last_page - 2, last_page - 1, last_page];
+        }
+        return [1, '...', current_page - 1, current_page, current_page + 1, '...', last_page];
+    };
+
     return (
         <TataLetakDashboard
             judulHalaman="Manajemen Dosen"
-            subJudul={`Kelola direktori dosen Fakultas Hukum (${daftarDosen.length} data)`}
+            subJudul={`Kelola direktori dosen Fakultas Hukum (${meta.total} data)`}
         >
             {/* Notifikasi */}
             {pesanSukses && (
@@ -246,20 +326,18 @@ export default function ManajemenDosen() {
 
             {/* Toolbar Atas */}
             <div className="bg-white rounded-xl border border-slate-200 p-4 mb-5 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        muatDataDosen(kataKunci);
-                    }}
-                    className="relative flex-1 max-w-md"
-                >
+                <form onSubmit={handleCariSubmit} className="relative flex-1 max-w-md">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                         type="text"
                         value={kataKunci}
                         onChange={(e) => {
-                            setKataKunci(e.target.value);
-                            if (e.target.value === '') muatDataDosen('');
+                            const nilai = e.target.value;
+                            setKataKunci(nilai);
+                            if (nilai === '') {
+                                setHalaman(1);
+                                void muatDataDosen(1, perHalaman, '');
+                            }
                         }}
                         placeholder="Cari nama dosen, NIDN, atau kepakaran..."
                         className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-red-800"
@@ -267,7 +345,6 @@ export default function ManajemenDosen() {
                 </form>
 
                 <div className="flex flex-wrap items-center gap-2.5">
-                    {/* Tombol Import CSV Spreadsheet */}
                     <label className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition">
                         {mengimpor ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -304,108 +381,185 @@ export default function ManajemenDosen() {
                     </div>
                 ) : daftarDosen.length === 0 ? (
                     <div className="p-12 text-center text-sm text-slate-500">
-                        Belum ada data dosen. Klik <strong>Import CSV</strong> untuk mengunggah data dari spreadsheet atau <strong>Tambah Dosen</strong>.
+                        Belum ada data dosen yang cocok. Klik <strong>Import CSV</strong> untuk mengunggah data dari spreadsheet atau <strong>Tambah Dosen</strong>.
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse text-sm">
-                            <thead>
-                                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase">
-                                    <th className="py-3 px-4">Foto</th>
-                                    <th className="py-3 px-4">Nama & Gelar</th>
-                                    <th className="py-3 px-4">NIDN / NUPTK</th>
-                                    <th className="py-3 px-4">Kepakaran</th>
-                                    <th className="py-3 px-4">Tautan Akademik</th>
-                                    <th className="py-3 px-4 text-right">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {daftarDosen.map((dosen) => (
-                                    <tr key={dosen.id} className="hover:bg-slate-50/70">
-                                        <td className="py-3 px-4">
-                                            <img
-                                                src={
-                                                    dosen.foto_url ||
-                                                    'https://cms.unpam.ac.id/storage/assets/pages/content/daSLOuCMvpk0UXKhRIypvoEpXEMaemtfLLKJUmhm.png'
-                                                }
-                                                alt={dosen.nama}
-                                                className="w-11 h-12 object-cover rounded-lg border border-slate-200 bg-slate-100"
-                                            />
-                                        </td>
-                                        <td className="py-3 px-4 font-semibold text-slate-900">
-                                            {dosen.nama}
-                                        </td>
-                                        <td className="py-3 px-4 text-slate-600 font-mono text-xs">
-                                            {dosen.nidn_nuptk || '-'}
-                                        </td>
-                                        <td className="py-3 px-4 text-slate-600 max-w-xs">
-                                            {dosen.kepakaran || '-'}
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <div className="flex flex-wrap gap-1.5 text-xs">
-                                                {dosen.link_scholar && (
-                                                    <a
-                                                        href={dosen.link_scholar}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                                    >
-                                                        Scholar <ExternalLink className="w-3 h-3" />
-                                                    </a>
-                                                )}
-                                                {dosen.link_sinta && (
-                                                    <a
-                                                        href={dosen.link_sinta}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                                    >
-                                                        Sinta <ExternalLink className="w-3 h-3" />
-                                                    </a>
-                                                )}
-                                                {dosen.link_pddikti && (
-                                                    <a
-                                                        href={dosen.link_pddikti}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                                    >
-                                                        PDDikti <ExternalLink className="w-3 h-3" />
-                                                    </a>
-                                                )}
-                                                {dosen.link_scopus && (
-                                                    <a
-                                                        href={dosen.link_scopus}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
-                                                    >
-                                                        Scopus <ExternalLink className="w-3 h-3" />
-                                                    </a>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="py-3 px-4 text-right whitespace-nowrap">
-                                            <button
-                                                onClick={() => bukaModalEdit(dosen)}
-                                                className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 mr-1"
-                                                title="Edit"
-                                            >
-                                                <Pencil className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => hapusDosen(dosen)}
-                                                className="p-1.5 rounded-lg text-red-600 hover:bg-red-50"
-                                                title="Hapus"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </td>
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase">
+                                        <th className="py-3 px-4 w-12">No</th>
+                                        <th className="py-3 px-4">Foto</th>
+                                        <th className="py-3 px-4">Nama & Gelar</th>
+                                        <th className="py-3 px-4">NIDN / NUPTK</th>
+                                        <th className="py-3 px-4">Kepakaran</th>
+                                        <th className="py-3 px-4">Tautan Akademik</th>
+                                        <th className="py-3 px-4 text-right">Aksi</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {daftarDosen.map((dosen, index) => (
+                                        <tr key={dosen.id} className="hover:bg-slate-50/70">
+                                            <td className="py-3 px-4 text-slate-500 font-medium">
+                                                {meta.from + index}
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <img
+                                                    src={
+                                                        dosen.foto_url ||
+                                                        'https://cms.unpam.ac.id/storage/assets/pages/content/daSLOuCMvpk0UXKhRIypvoEpXEMaemtfLLKJUmhm.png'
+                                                    }
+                                                    alt={dosen.nama}
+                                                    className="w-11 h-12 object-cover rounded-lg border border-slate-200 bg-slate-100"
+                                                />
+                                            </td>
+                                            <td className="py-3 px-4 font-semibold text-slate-900">
+                                                {dosen.nama}
+                                            </td>
+                                            <td className="py-3 px-4 text-slate-600 font-mono text-xs">
+                                                {dosen.nidn_nuptk || '-'}
+                                            </td>
+                                            <td className="py-3 px-4 text-slate-600 max-w-xs">
+                                                {dosen.kepakaran || '-'}
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <div className="flex flex-wrap gap-1.5 text-xs">
+                                                    {dosen.link_scholar && (
+                                                        <a
+                                                            href={dosen.link_scholar}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                                        >
+                                                            Scholar <ExternalLink className="w-3 h-3" />
+                                                        </a>
+                                                    )}
+                                                    {dosen.link_sinta && (
+                                                        <a
+                                                            href={dosen.link_sinta}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                                        >
+                                                            Sinta <ExternalLink className="w-3 h-3" />
+                                                        </a>
+                                                    )}
+                                                    {dosen.link_pddikti && (
+                                                        <a
+                                                            href={dosen.link_pddikti}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                                        >
+                                                            PDDikti <ExternalLink className="w-3 h-3" />
+                                                        </a>
+                                                    )}
+                                                    {dosen.link_scopus && (
+                                                        <a
+                                                            href={dosen.link_scopus}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
+                                                        >
+                                                            Scopus <ExternalLink className="w-3 h-3" />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                                                <button
+                                                    onClick={() => bukaModalEdit(dosen)}
+                                                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 mr-1"
+                                                    title="Edit"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => hapusDosen(dosen)}
+                                                    className="p-1.5 rounded-lg text-red-600 hover:bg-red-50"
+                                                    title="Hapus"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Footer Tabel: Pilihan Jumlah Tampil + Info + Pagination */}
+                        <div className="px-4 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+                            <div className="flex flex-wrap items-center gap-3 text-slate-600">
+                                <label className="inline-flex items-center gap-2">
+                                    <span>Tampilkan</span>
+                                    <select
+                                        value={perHalaman}
+                                        onChange={(e) => handleUbahPerHalaman(Number(e.target.value))}
+                                        className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-800 font-medium focus:outline-none focus:border-[#800000]"
+                                    >
+                                        {OPSI_PER_HALAMAN.map((opsi) => (
+                                            <option key={opsi} value={opsi}>
+                                                {opsi}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <span>data</span>
+                                </label>
+
+                                <span className="text-xs sm:text-sm text-slate-500">
+                                    Menampilkan <strong>{meta.from}</strong> - <strong>{meta.to}</strong> dari{' '}
+                                    <strong>{meta.total}</strong> dosen
+                                </span>
+                            </div>
+
+                            {/* Tombol Pagination */}
+                            {meta.last_page > 1 && (
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setHalaman((p) => Math.max(1, p - 1))}
+                                        disabled={meta.current_page <= 1}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-medium hover:bg-slate-100 disabled:opacity-45 disabled:pointer-events-none"
+                                    >
+                                        <ChevronLeft className="w-3.5 h-3.5" />
+                                        <span>Prev</span>
+                                    </button>
+
+                                    {daftarHalaman().map((item, idx) =>
+                                        item === '...' ? (
+                                            <span key={`el-${idx}`} className="px-2 text-slate-400 text-xs">
+                                                ...
+                                            </span>
+                                        ) : (
+                                            <button
+                                                key={item}
+                                                type="button"
+                                                onClick={() => setHalaman(item)}
+                                                className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-semibold transition ${item === meta.current_page
+                                                        ? 'bg-[#800000] text-white border border-[#800000]'
+                                                        : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'
+                                                    }`}
+                                            >
+                                                {item}
+                                            </button>
+                                        )
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setHalaman((p) => Math.min(meta.last_page, p + 1))}
+                                        disabled={meta.current_page >= meta.last_page}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-medium hover:bg-slate-100 disabled:opacity-45 disabled:pointer-events-none"
+                                    >
+                                        <span>Next</span>
+                                        <ChevronRight className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -536,18 +690,19 @@ export default function ManajemenDosen() {
                                         className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block font-medium text-slate-700 mb-1">
-                                        Link Profil Scopus (Jika Ada)
-                                    </label>
-                                    <input
-                                        type="url"
-                                        value={linkScopus}
-                                        onChange={(e) => setLinkScopus(e.target.value)}
-                                        placeholder="https://www.scopus.com/authid/detail.uri?authorId=..."
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                                    />
-                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block font-medium text-slate-700 mb-1">
+                                    Link Profil Scopus (Jika Ada)
+                                </label>
+                                <input
+                                    type="url"
+                                    value={linkScopus}
+                                    onChange={(e) => setLinkScopus(e.target.value)}
+                                    placeholder="https://www.scopus.com/authid/detail.uri?authorId=..."
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                                />
                             </div>
 
                             <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">

@@ -1,60 +1,156 @@
-import { Link } from 'react-router-dom';
-import { Users, BookOpen, CalendarDays, ArrowRight } from 'lucide-react';
-import TataLetakDashboard from '../../layout/dashboard';
+import { useState, type ReactNode } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  Calendar,
+  LogOut,
+  Menu,
+  X,
+} from 'lucide-react';
+import { gunakanAutentikasi } from '../../konteks/KonteksAutentikasi';
 
-const kartuMenu = [
-    {
-        judul: 'Manajemen Dosen',
-        deskripsi: 'Kelola profil dosen, NIDN, jabatan fungsional, dan bidang keahlian.',
-        ke: '/dashboard/dosen',
-        ikon: Users,
-    },
-    {
-        judul: 'Manajemen Kurikulum',
-        deskripsi: 'Kelola daftar mata kuliah, semester, beban SKS, dan prasyarat.',
-        ke: '/dashboard/kurikulum',
-        ikon: BookOpen,
-    },
-    {
-        judul: 'Kalender Akademik',
-        deskripsi: 'Kelola jadwal kegiatan akademik per tahun ajaran dan semester.',
-        ke: '/dashboard/kalender-akademik',
-        ikon: CalendarDays,
-    },
+interface PropsTataLetak {
+  judulHalaman: string;
+  subJudul?: string;
+  children: ReactNode;
+}
+
+const MENU_ADMIN = [
+  { label: 'Ringkasan', path: '/dashboard', icon: LayoutDashboard },
+  { label: 'Manajemen Dosen', path: '/dashboard/dosen', icon: Users },
+  { label: 'Manajemen Kurikulum', path: '/dashboard/kurikulum', icon: BookOpen },
+  { label: 'Kalender Akademik', path: '/dashboard/kalender-akademik', icon: Calendar },
 ];
 
-export default function RingkasanDashboard() {
-    return (
-        <TataLetakDashboard
-            judulHalaman="Ringkasan Dashboard"
-            subJudul="Kelola 3 modul utama yang terhubung ke halaman publik"
+export default function TataLetakDashboard({
+  judulHalaman,
+  subJudul,
+  children,
+}: PropsTataLetak) {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { pengguna, keluar } = gunakanAutentikasi();
+  const [sidebarMobileTerbuka, setSidebarMobileTerbuka] = useState(false);
+
+  const handleKeluar = async () => {
+    await keluar();
+    navigate('/masuk', { replace: true });
+  };
+
+  const isiSidebar = (
+    <div className="h-full flex flex-col justify-between">
+      {/* Bagian Atas + Daftar Menu */}
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="h-16 px-5 flex items-center gap-3 border-b border-slate-200 shrink-0">
+          <img
+            src="/unpam-logo.png"
+            alt="Logo Fakultas Hukum"
+            className="w-8 h-8 object-contain"
+          />
+          <div className="leading-tight">
+            <div className="font-bold text-slate-900 text-sm">Fakultas Hukum</div>
+            <div className="text-[11px] text-slate-500">Panel Admin</div>
+          </div>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {MENU_ADMIN.map((item) => {
+            const Icon = item.icon;
+            const aktif = pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setSidebarMobileTerbuka(false)}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition ${
+                  aktif
+                    ? 'bg-[#800000] text-white'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Bagian Bawah: Selalu diam di dasar sidebar */}
+      <div className="p-3 border-t border-slate-200 bg-white shrink-0 space-y-2">
+        {pengguna && (
+          <div className="px-3 py-1.5 text-xs">
+            <div className="font-semibold text-slate-800 truncate">{pengguna.nama}</div>
+            <div className="text-slate-500 truncate">{pengguna.email}</div>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={handleKeluar}
+          className="w-full flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100 transition"
         >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {kartuMenu.map((item) => {
-                    const Ikon = item.ikon;
-                    return (
-                        <Link
-                            key={item.ke}
-                            to={item.ke}
-                            className="group bg-white rounded-xl border border-slate-200 p-5 hover:border-amber-900/40 hover:shadow-sm transition-all flex flex-col justify-between"
-                        >
-                            <div>
-                                <div className="w-10 h-10 rounded-lg bg-amber-950/5 text-amber-950 flex items-center justify-center mb-4">
-                                    <Ikon className="w-5 h-5" />
-                                </div>
-                                <h2 className="text-base font-semibold text-slate-900 group-hover:text-amber-950">
-                                    {item.judul}
-                                </h2>
-                                <p className="text-sm text-slate-500 mt-1.5">{item.deskripsi}</p>
-                            </div>
-                            <div className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-amber-950">
-                                <span>Buka menu</span>
-                                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                            </div>
-                        </Link>
-                    );
-                })}
-            </div>
-        </TataLetakDashboard>
-    );
+          <LogOut className="w-4 h-4" />
+          <span>Keluar</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="h-screen overflow-hidden bg-slate-50 flex">
+      {/* Sidebar Desktop: tinggi pas 1 layar (h-screen), tidak ikut memanjang */}
+      <aside className="hidden md:block w-64 h-screen sticky top-0 shrink-0 bg-white border-r border-slate-200">
+        {isiSidebar}
+      </aside>
+
+      {/* Drawer Sidebar Mobile */}
+      {sidebarMobileTerbuka && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          <div
+            className="fixed inset-0 bg-black/40"
+            onClick={() => setSidebarMobileTerbuka(false)}
+          />
+          <aside className="relative z-10 w-64 h-full bg-white border-r border-slate-200">
+            <button
+              type="button"
+              onClick={() => setSidebarMobileTerbuka(false)}
+              className="absolute top-4 right-3 p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+              aria-label="Tutup menu"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            {isiSidebar}
+          </aside>
+        </div>
+      )}
+
+      {/* Area Konten Utama yang Melakukan Scroll */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+        <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur border-b border-slate-200 px-4 sm:px-6 flex items-center gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => setSidebarMobileTerbuka(true)}
+            className="md:hidden p-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100"
+            aria-label="Buka menu"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+          <div>
+            <h1 className="font-bold text-slate-900 text-base sm:text-lg leading-tight">
+              {judulHalaman}
+            </h1>
+            {subJudul && (
+              <p className="text-xs text-slate-500">{subJudul}</p>
+            )}
+          </div>
+        </header>
+
+        <main className="flex-1 p-4 sm:p-6">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
 }

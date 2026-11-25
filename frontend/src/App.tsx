@@ -8,6 +8,9 @@ import RingkasanDashboard from './page/dashboard/dashboard';
 import TataLetakDashboard from './layout/dashboard';
 import DosenPublik from './page/public/DosenPublik';
 import DosenAdmin from './page/dashboard/dosen';
+import PetaKurikulum from './page/public/PetaKurikulumPage';
+
+
 
 function RuteTerproteksi({ children }: { children: ReactNode }) {
   const { sudahMasuk, memuat } = gunakanAutentikasi();
@@ -79,6 +82,7 @@ export default function App() {
           />
 
           <Route path="/dosen" element={<DosenPublik />} />
+          <Route path="/peta-kurikulum" element={<PetaKurikulum />} />
           <Route path="*" element={<Navigate to="/masuk" replace />} />
         </Routes>
       </BrowserRouter>

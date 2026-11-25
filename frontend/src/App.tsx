@@ -7,6 +7,7 @@ import HalamanMasuk from './page/auth/login';
 import RingkasanDashboard from './page/dashboard/dashboard';
 import TataLetakDashboard from './layout/dashboard';
 import DosenPublik from './page/public/DosenPublik';
+import DosenAdmin from './page/dashboard/dosen';
 
 function RuteTerproteksi({ children }: { children: ReactNode }) {
   const { sudahMasuk, memuat } = gunakanAutentikasi();
@@ -53,17 +54,7 @@ export default function App() {
               </RuteTerproteksi>
             }
           />
-          <Route
-            path="/dashboard/dosen"
-            element={
-              <RuteTerproteksi>
-                <PlaceholderMenu
-                  judul="Manajemen Dosen"
-                  subJudul="Tambah, ubah, dan hapus data dosen"
-                />
-              </RuteTerproteksi>
-            }
-          />
+          <Route path="/dashboard/dosen" element={<DosenAdmin />} />
           <Route
             path="/dashboard/kurikulum"
             element={
@@ -86,7 +77,7 @@ export default function App() {
               </RuteTerproteksi>
             }
           />
-          
+
           <Route path="/dosen" element={<DosenPublik />} />
           <Route path="*" element={<Navigate to="/masuk" replace />} />
         </Routes>

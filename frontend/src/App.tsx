@@ -50,7 +50,7 @@ export default function App() {
             path="/dashboard"
             element={
               <RuteTerproteksi>
-                <RingkasanDashboard judulHalaman={''} children={''} />
+                <RingkasanDashboard />
               </RuteTerproteksi>
             }
           />

@@ -41,7 +41,7 @@ export default function TataLetakDashboard({
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex">
+        <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-slate-50 flex">
             {/* Overlay mobile */}
             {sidebarTerbuka && (
                 <div
@@ -52,10 +52,10 @@ export default function TataLetakDashboard({
 
             {/* Sidebar */}
             <aside
-                className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-amber-950 text-amber-50 flex flex-col transition-transform duration-200 ${sidebarTerbuka ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+                className={`fixed lg:sticky lg:top-0 inset-y-0 left-0 z-40 w-64 h-screen shrink-0 bg-amber-950 text-amber-50 flex flex-col transition-transform duration-200 ${sidebarTerbuka ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
                     }`}
             >
-                <div className="h-16 px-5 flex items-center justify-between border-b border-amber-900/70">
+                <div className="h-16 px-5 flex items-center justify-between border-b border-amber-900/70 shrink-0">
                     <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-amber-400/15 text-amber-300 flex items-center justify-center">
                             <Scale className="w-4 h-4" />
@@ -75,7 +75,7 @@ export default function TataLetakDashboard({
                     </button>
                 </div>
 
-                <nav className="flex-1 px-3 py-4 space-y-1">
+                <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
                     <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-amber-300/60">
                         Menu Utama
                     </p>
@@ -101,7 +101,7 @@ export default function TataLetakDashboard({
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-amber-900/70 space-y-3">
+                <div className="p-4 border-t border-amber-900/70 space-y-3 shrink-0">
                     <div className="px-2">
                         <p className="text-xs font-medium text-white truncate">{pengguna?.nama || 'Admin'}</p>
                         <p className="text-[11px] text-amber-200/70 truncate">{pengguna?.email}</p>
@@ -118,8 +118,8 @@ export default function TataLetakDashboard({
             </aside>
 
             {/* Area Utama */}
-            <div className="flex-1 flex flex-col min-w-0">
-                <header className="h-16 bg-white border-b border-slate-200 px-4 lg:px-7 flex items-center justify-between gap-4">
+            <div className="flex-1 flex flex-col min-w-0 lg:h-screen lg:overflow-y-auto">
+                <header className="sticky top-0 z-20 h-16 bg-white border-b border-slate-200 px-4 lg:px-7 flex items-center justify-between gap-4 shrink-0">
                     <div className="flex items-center gap-3 min-w-0">
                         <button
                             type="button"

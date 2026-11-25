@@ -31,7 +31,7 @@ function ambilToken(): string {
     return (
         localStorage.getItem('token') ||
         localStorage.getItem('auth_token') ||
-        localStorage.getItem('token_dashboard_fh') ||
+        localStorage.getItem('token_fh') ||
         ''
     );
 }

@@ -274,4 +274,41 @@ class DosenController extends Controller
         $bagianPertama = trim(explode('|', $raw)[0]);
         return filter_var($bagianPertama, FILTER_VALIDATE_URL) ? $bagianPertama : $bagianPertama;
     }
+    /**
+ * Mengambil nama inti saja tanpa gelar depan maupun gelar belakang untuk sorting A-Z
+ */
+    private function ekstrakNamaInti(string $namaLengkap): string
+    {
+        // 1. Ambil bagian sebelum koma pertama (menghilangkan gelar belakang seperti ", S.H., M.H.")
+        $tanpaGelarBelakang = explode(',', $namaLengkap)[0];
+
+        // 2. Bersihkan gelar depan berulang (Prof., Dr., Assoc., dr., Dr (C)., H., Hj., Ir., Drs., Dra., KH., dll.)
+        $polaGelarDepan = '/^(?:assoc\.?|prof\.?|dr\.?|drs\.?|dra\.?|ir\.?|h\.?|hj\.?|kh\.?|ust\.?|ustadz\.?|raden\.?|rm\.?|tb\.?|dr\s*\(c\)\.?|prof\s*\(emeritus\)\.?)\s+/i';
+
+        $hasil = trim($tanpaGelarBelakang);
+        while (preg_match($polaGelarDepan, $hasil)) {
+            $hasil = preg_replace($polaGelarDepan, '', $hasil);
+            $hasil = trim((string) $hasil);
+        }
+
+        // 3. Bersihkan titik/koma berlebih di awal atau akhir lalu lowercase untuk sorting A-Z
+        $hasilBersih = trim($hasil, " \t\n\r\0\x0B.,");
+        return mb_strtolower($hasilBersih !== '' ? $hasilBersih : $namaLengkap, 'UTF-8');
+    }
+    public function sinkronSort(): JsonResponse
+{
+    $total = 0;
+    Dosen::chunkById(100, function ($items) use (&$total) {
+        foreach ($items as $dosen) {
+            $dosen->update([
+                'nama_sort' => $this->ekstrakNamaInti($dosen->nama),
+            ]);
+            $total++;
+        }
+    });
+
+    return response()->json([
+        'pesan' => "Berhasil memperbarui urutan nama A-Z untuk {$total} dosen.",
+    ]);
+}
 }

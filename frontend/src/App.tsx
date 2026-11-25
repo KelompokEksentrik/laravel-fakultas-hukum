@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { PenyediaAutentikasi, gunakanAutentikasi } from './konteks/KonteksAutentikasi';
+import LandingPage from "./page/LandingPage";
 import HalamanMasuk from './page/auth/login';
 import RingkasanDashboard from './page/dashboard/dashboard';
 import TataLetakDashboard from './layout/dashboard';
@@ -40,7 +41,7 @@ export default function App() {
     <PenyediaAutentikasi>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/masuk" replace />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/masuk" element={<HalamanMasuk />} />
 
           <Route

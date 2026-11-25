@@ -19,8 +19,8 @@ class DosenController extends Controller
         $cari = trim((string) $request->input('search', ''));
 
         $query = Dosen::query()
-            ->orderBy('urutan', 'asc')
-            ->orderBy('id', 'asc');
+        ->orderByRaw("COALESCE(NULLIF(TRIM(nama_sort), ''), lower(TRIM(nama))) ASC")
+        ->orderBy('id', 'asc');
 
         if ($cari !== '') {
             $query->where(function ($q) use ($cari) {

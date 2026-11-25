@@ -41,7 +41,7 @@ export interface KurikulumPublikResponse {
 
 const API_BASE =
     import.meta.env.VITE_API_URL?.replace(/\/$/, "") ||
-    "https://backend-fakultas-hukum-unpam.onrender.com";
+    "https://fakultas-hukum-unpam.onrender.com";
 
 const getAdminHeaders = (): HeadersInit => {
     const token =

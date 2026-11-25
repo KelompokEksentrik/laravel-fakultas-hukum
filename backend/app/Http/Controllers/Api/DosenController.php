@@ -267,12 +267,12 @@ class DosenController extends Controller
     private function bersihkanUrl(?string $raw): ?string
     {
         $raw = trim((string) $raw);
-        if ($raw === '') {
+        if ($raw === '' || in_array(mb_strtolower($raw), ['-', 'n/a', 'tidak ada', 'none'], true)) {
             return null;
         }
 
         $bagianPertama = trim(explode('|', $raw)[0]);
-        return filter_var($bagianPertama, FILTER_VALIDATE_URL) ? $bagianPertama : $bagianPertama;
+        return filter_var($bagianPertama, FILTER_VALIDATE_URL) ? $bagianPertama : null;
     }
     /**
  * Mengambil nama inti saja tanpa gelar depan maupun gelar belakang untuk sorting A-Z

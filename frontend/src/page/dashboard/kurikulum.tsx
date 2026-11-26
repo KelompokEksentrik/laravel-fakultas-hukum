@@ -193,7 +193,7 @@ export default function KurikulumAdmin() {
             };
 
             if (editingCplId) {
-                await kurikulumApi.updateCpl(editingCplId, payload);
+                await kurikulumApi.updateCpl(activeProfil.id, editingCplId, payload);
                 setFeedback({ type: "success", text: "CPL diperbarui." });
             } else {
                 await kurikulumApi.createCpl(activeProfil.id, payload);
@@ -215,7 +215,7 @@ export default function KurikulumAdmin() {
         if (!activeProfil) return;
         try {
             setSaving(true);
-            await kurikulumApi.deleteCpl(cplId);
+            await kurikulumApi.deleteCpl(activeProfil.id, cplId);
             if (editingCplId === cplId) resetCplForm();
             await loadData(activeProfil.id);
             setFeedback({ type: "success", text: "CPL dihapus." });
@@ -260,7 +260,7 @@ export default function KurikulumAdmin() {
             };
 
             if (editingMkId) {
-                await kurikulumApi.updateMataKuliah(editingMkId, payload);
+                await kurikulumApi.updateMataKuliah(activeProfil.id, editingMkId, payload);
                 setFeedback({ type: "success", text: "Mata kuliah diperbarui." });
             } else {
                 await kurikulumApi.createMataKuliah(activeProfil.id, payload);
@@ -282,7 +282,7 @@ export default function KurikulumAdmin() {
         if (!activeProfil) return;
         try {
             setSaving(true);
-            await kurikulumApi.deleteMataKuliah(mkId);
+            await kurikulumApi.deleteMataKuliah(activeProfil.id, mkId);
             if (editingMkId === mkId) resetMkForm();
             await loadData(activeProfil.id);
             setFeedback({ type: "success", text: "Mata kuliah dihapus." });

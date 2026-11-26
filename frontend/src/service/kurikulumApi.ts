@@ -41,7 +41,7 @@ export interface KurikulumPublikResponse {
 
 const API_BASE =
     import.meta.env.VITE_API_URL?.replace(/\/$/, "") ||
-    "https://fakultas-hukum-unpam.onrender.com";
+    "https://laravel-fakultas-hukum.onrender.com";
 
 const getAdminHeaders = (): HeadersInit => {
     const token =
@@ -95,7 +95,7 @@ export const kurikulumApi = {
         ringkasan_keterhubungan: string;
         urutan?: number;
     }): Promise<KurikulumProfil> {
-        const res = await fetch(`${API_BASE}/api/v1/kurikulum`, {
+        const res = await fetch(`${API_BASE}/api/v1/kurikulum-peta`, {
             method: "POST",
             headers: getAdminHeaders(),
             body: JSON.stringify(payload),
@@ -115,8 +115,8 @@ export const kurikulumApi = {
             urutan?: number;
         }
     ): Promise<KurikulumProfil> {
-        const res = await fetch(`${API_BASE}/api/v1/kurikulum/${id}`, {
-            method: "PUT",
+        const res = await fetch(`${API_BASE}/api/v1/kurikulum-peta/${id}`, {
+            method: "POST",
             headers: getAdminHeaders(),
             body: JSON.stringify(payload),
         });
@@ -126,7 +126,7 @@ export const kurikulumApi = {
     },
 
     async deleteProfil(id: number): Promise<void> {
-        const res = await fetch(`${API_BASE}/api/v1/kurikulum/${id}`, {
+        const res = await fetch(`${API_BASE}/api/v1/kurikulum-peta/${id}`, {
             method: "DELETE",
             headers: getAdminHeaders(),
         });
@@ -137,7 +137,7 @@ export const kurikulumApi = {
         profilId: number,
         payload: { kode_cpl: string; deskripsi: string; urutan?: number }
     ): Promise<KurikulumCpl> {
-        const res = await fetch(`${API_BASE}/api/v1/kurikulum/${profilId}/cpl`, {
+        const res = await fetch(`${API_BASE}/api/v1/kurikulum-peta/${profilId}/cpl`, {
             method: "POST",
             headers: getAdminHeaders(),
             body: JSON.stringify(payload),
@@ -148,24 +148,31 @@ export const kurikulumApi = {
     },
 
     async updateCpl(
+        profilId: number,
         cplId: number,
         payload: { kode_cpl: string; deskripsi: string; urutan?: number }
     ): Promise<KurikulumCpl> {
-        const res = await fetch(`${API_BASE}/api/v1/kurikulum/cpl/${cplId}`, {
-            method: "PUT",
-            headers: getAdminHeaders(),
-            body: JSON.stringify(payload),
-        });
+        const res = await fetch(
+            `${API_BASE}/api/v1/kurikulum-peta/${profilId}/cpl/${cplId}`,
+            {
+                method: "POST",
+                headers: getAdminHeaders(),
+                body: JSON.stringify(payload),
+            }
+        );
         if (!res.ok) throw new Error("Gagal memperbarui CPL.");
         const json = await res.json();
         return json.data;
     },
 
-    async deleteCpl(cplId: number): Promise<void> {
-        const res = await fetch(`${API_BASE}/api/v1/kurikulum/cpl/${cplId}`, {
-            method: "DELETE",
-            headers: getAdminHeaders(),
-        });
+    async deleteCpl(profilId: number, cplId: number): Promise<void> {
+        const res = await fetch(
+            `${API_BASE}/api/v1/kurikulum-peta/${profilId}/cpl/${cplId}`,
+            {
+                method: "DELETE",
+                headers: getAdminHeaders(),
+            }
+        );
         if (!res.ok) throw new Error("Gagal menghapus CPL.");
     },
 
@@ -180,7 +187,7 @@ export const kurikulumApi = {
         }
     ): Promise<KurikulumMataKuliah> {
         const res = await fetch(
-            `${API_BASE}/api/v1/kurikulum/${profilId}/mata-kuliah`,
+            `${API_BASE}/api/v1/kurikulum-peta/${profilId}/mata-kuliah`,
             {
                 method: "POST",
                 headers: getAdminHeaders(),
@@ -193,6 +200,7 @@ export const kurikulumApi = {
     },
 
     async updateMataKuliah(
+        profilId: number,
         mkId: number,
         payload: {
             kode_mk: string;
@@ -203,9 +211,9 @@ export const kurikulumApi = {
         }
     ): Promise<KurikulumMataKuliah> {
         const res = await fetch(
-            `${API_BASE}/api/v1/kurikulum/mata-kuliah/${mkId}`,
+            `${API_BASE}/api/v1/kurikulum-peta/${profilId}/mata-kuliah/${mkId}`,
             {
-                method: "PUT",
+                method: "POST",
                 headers: getAdminHeaders(),
                 body: JSON.stringify(payload),
             }
@@ -215,9 +223,9 @@ export const kurikulumApi = {
         return json.data;
     },
 
-    async deleteMataKuliah(mkId: number): Promise<void> {
+    async deleteMataKuliah(profilId: number, mkId: number): Promise<void> {
         const res = await fetch(
-            `${API_BASE}/api/v1/kurikulum/mata-kuliah/${mkId}`,
+            `${API_BASE}/api/v1/kurikulum-peta/${profilId}/mata-kuliah/${mkId}`,
             {
                 method: "DELETE",
                 headers: getAdminHeaders(),

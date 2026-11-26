@@ -45,9 +45,10 @@ const API_BASE =
 
 const getAdminHeaders = (): HeadersInit => {
     const token =
+        localStorage.getItem("token_fh") ||
         localStorage.getItem("token") ||
         localStorage.getItem("auth_token") ||
-        "token_fh";
+        "";
 
     return {
         "Content-Type": "application/json",

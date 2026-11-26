@@ -350,18 +350,17 @@ export default function KurikulumAdmin() {
 
                 {offlineMode && (
                     <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-                        Endpoint admin <code>/api/v1/kurikulum</code> belum terhubung di
-                        server backend (404). Pastikan <code>routes/api.php</code> dan{" "}
-                        <code>KurikulumController.php</code> sudah di-deploy lalu jalankan{" "}
-                        <code>php artisan route:clear</code>.
+                        Akses ke endpoint admin <code>/api/v1/kurikulum-peta</code> ditolak
+                        (401 Unauthorized) atau tidak dapat dijangkau. Periksa token{" "}
+                        <code>token_fh</code> dan konfigurasi autentikasi di server Laravel.
                     </div>
                 )}
 
                 {feedback && (
                     <div
                         className={`rounded-lg border px-4 py-3 text-sm font-medium ${feedback.type === "success"
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                                : "border-red-200 bg-red-50 text-red-800"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                            : "border-red-200 bg-red-50 text-red-800"
                             }`}
                     >
                         {feedback.text}
@@ -395,8 +394,8 @@ export default function KurikulumAdmin() {
                                                 <div
                                                     key={p.id}
                                                     className={`flex items-center justify-between gap-2 rounded-lg border p-3 transition ${isSelected
-                                                            ? "border-[#800000] bg-[#fff5f5]"
-                                                            : "border-slate-200 bg-slate-50/70 hover:bg-slate-100/70"
+                                                        ? "border-[#800000] bg-[#fff5f5]"
+                                                        : "border-slate-200 bg-slate-50/70 hover:bg-slate-100/70"
                                                         }`}
                                                 >
                                                     <button

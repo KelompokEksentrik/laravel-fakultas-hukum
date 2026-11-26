@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     Users,
@@ -33,7 +33,14 @@ export default function TataLetakDashboard({
 }: TataLetakDashboardProps) {
     const { pengguna, keluar } = gunakanAutentikasi();
     const navigate = useNavigate();
+    const { pathname } = useLocation();
     const [sidebarTerbuka, setSidebarTerbuka] = useState(false);
+
+    const tujuanPublik = pathname.startsWith('/dashboard/dosen')
+        ? '/dosen'
+        : pathname.startsWith('/dashboard/kurikulum')
+            ? '/peta-kurikulum'
+            : '/';
 
     const tanganiKeluar = async () => {
         await keluar();
@@ -140,7 +147,7 @@ export default function TataLetakDashboard({
                     </div>
 
                     <a
-                        href="/publik/dosen"
+                        href={tujuanPublik}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-950 bg-amber-100/80 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors shrink-0"
